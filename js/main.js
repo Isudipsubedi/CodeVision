@@ -1,7 +1,7 @@
 const languageTopics = {
   javascript: ["hoisting", "eventloop"],
   python: ["fibonacci", "recursion"],
-  go: ["hello", "loop"], // add .go files in js/topics/go/
+  go: ["hello", "loop"],
   sql: ["joins", "aggregation"],
   react: ["useEffect", "state"],
 };
@@ -20,6 +20,12 @@ const codeEditor = document.getElementById("code-editor");
 const outputConsole = document.getElementById("output-console");
 const runButton = document.getElementById("run-button");
 
+// ⬇️ Topic content containers
+const topicContent = document.getElementById("topic-content");
+const topicText = document.getElementById("topic-text");
+const topicLink = document.getElementById("topic-link");
+const topicDetails = document.getElementById("topic-details");
+
 let selectedLanguage = "javascript";
 
 // Populate language dropdown
@@ -36,6 +42,7 @@ languageSelect.onchange = () => {
   renderTopicButtons(selectedLanguage);
   codeEditor.value = "";
   clearConsole();
+  hideTopicDetails();
 };
 
 // Render topic buttons for selected language
@@ -49,16 +56,38 @@ function renderTopicButtons(language) {
   });
 }
 
-// Load code snippet
+// Load code snippet + fetch Notion data
 async function loadTopic(language, topic) {
   const path = `js/topics/${language}/${topic}.${getFileExtension(language)}`;
   try {
+    // Load code
     const res = await fetch(path);
     const code = await res.text();
     codeEditor.value = code;
     clearConsole();
+
+    // Fetch topic content from server (Notion)
+    const explainRes = await fetch(`/topic/${topic}`);
+    const { content, text, pageUrl } = await explainRes.json();
+
+    topicContent.textContent = content || "";
+    topicText.textContent = text || "";
+
+    topicLink.innerHTML = pageUrl
+      ? `<a href="${pageUrl}" target="_blank">📄 Open full Notion page</a>`
+      : "";
+
+    // 🔁 Embed the Notion page directly
+    document.getElementById("notion-frame").src = pageUrl || "";
+
+    // Show topic details
+    topicDetails.style.display = "block";
   } catch (err) {
-    codeEditor.value = `// Failed to load: ${err.message}`;
+    codeEditor.value = `// Failed to load code: ${err.message}`;
+    topicContent.textContent = `❌ Failed to load explanation: ${err.message}`;
+    topicText.textContent = "";
+    topicLink.innerHTML = "";
+    topicDetails.style.display = "block";
   }
 }
 
@@ -78,7 +107,7 @@ runButton.onclick = async () => {
   restoreConsole();
 };
 
-// Get file extension by language
+// Helpers
 function getFileExtension(language) {
   if (language === "javascript" || language === "react") return "js";
   if (language === "python") return "py";
@@ -87,7 +116,6 @@ function getFileExtension(language) {
   return "txt";
 }
 
-// Output utilities
 function clearConsole() {
   outputConsole.innerHTML = "";
 }
@@ -114,5 +142,13 @@ function logToOutput(msg) {
   outputConsole.appendChild(div);
 }
 
+function hideTopicDetails() {
+  topicContent.textContent = "";
+  topicText.textContent = "";
+  topicLink.innerHTML = "";
+  topicDetails.style.display = "none";
+}
+
 // Initialize with default
 renderTopicButtons(selectedLanguage);
+hideTopicDetails();
